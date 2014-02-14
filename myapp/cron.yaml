@@ -1,0 +1,5 @@
+cron:
+- description: grab image from internet
+  url: /tasks/grab/.*
+  schedule: every 2 mins
+  timezone: Asia/Shanghai
