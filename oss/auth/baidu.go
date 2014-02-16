@@ -1,19 +1,21 @@
-package provider
+package auth
 
 import (
-	"github.com/junwudu/oss/auth"
 	"crypto/sha1"
 	"crypto/hmac"
 	"encoding/base64"
 	"net/url"
 	"bytes"
+	"hash"
 )
 
 
-func BaiduDo(auth *auth.Auth, signParam *auth.SignParameter) string {
+func BaiduDo(auth *Auth, signParam *SignParameter) string {
 	flag, data := content(signParam)
 
-	h := hmac.New(sha1.New, auth.Secret)
+	var f func() hash.Hash = sha1.New
+
+	h := hmac.New(f, auth.Secret)
 	h.Write(data)
 	signed := base64.URLEncoding.EncodeToString(h.Sum(nil))
 
@@ -25,7 +27,7 @@ func BaiduDo(auth *auth.Auth, signParam *auth.SignParameter) string {
 }
 
 
-func BaiduDo2Url(auth *auth.Auth, signParam *auth.SignParameter) string {
+func BaiduDo2Url(auth *Auth, signParam *SignParameter) string {
 
 	var u bytes.Buffer
 
@@ -61,7 +63,7 @@ func BaiduDo2Url(auth *auth.Auth, signParam *auth.SignParameter) string {
 }
 
 
-func content(signParam *auth.SignParameter) (string, []byte) {
+func content(signParam *SignParameter) (string, []byte) {
 
 	var flag bytes.Buffer
 	var ct bytes.Buffer
