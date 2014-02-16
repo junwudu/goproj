@@ -8,7 +8,7 @@ import (
 )
 
 type Parser interface {
-	Parse(reader io.Reader) (error)
+	Parse(reader io.Reader) (result interface {}, err error)
 }
 
 

@@ -2,59 +2,40 @@ package main
 
 import (
 	"fmt"
-	"runtime"
-	"strconv"
-//	"math/rand"
-//	"math"
-//	"reflect"
 	"reflect"
-	"strings"
 )
 
-func mem(suffix string) uint64 {
-	mem := runtime.MemStats{}
-	runtime.ReadMemStats(&mem)
-	fmt.Printf("%s--> %v\n",suffix, mem.TotalAlloc)
-	return mem.Alloc
-}
 
-var (
-	aa = 33
-	bb = 44
-	cc = true
-)
+func G() (result interface {}) {
 
-type A float64
+	m := map[string]string{"a": "pp", "b": "cc"}
 
-func (a A) add(b A) (r A) {
-	r = a + b
+	result = interface {}(m)
+
 	return
 }
 
+
+type S struct {
+	x int
+	y int
+}
+
+
+func (s *S) setX(x int) {
+	s.x = x
+}
+
+
 func main() {
-	s := mem("start")
+	fmt.Printf("%T-->%v", G(), reflect.TypeOf(G()))
 
+	var s S
+	s.setX(34)
+	fmt.Println(s)
 
-	x := [][]byte {{3,4}, {5,6}}
+	y := "yes"
+	fmt.Println(y[0])
 
-	fmt.Printf("%v %T\n", x, x)
-
-	z := make([][]byte, 3)
-
-	fmt.Println(reflect.TypeOf(x) == reflect.TypeOf(z))
-
-	x[0] = make([]byte, 2)
-	fmt.Println(len(x), x)
-
-	w := "i am a studio!"
-	si := strings.Split(w, " ")
-	fmt.Printf("%v\n", len(si))
-
-	mp := make(map[string]int, 4)
-	fmt.Println(mp["sfewfefew"])
-
-	e := mem("end")
-
-	println("diff -> " + strconv.FormatUint(e-s, 10))
 }
 
