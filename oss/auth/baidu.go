@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"bytes"
 	"hash"
+	"strings"
 )
 
 
@@ -33,30 +34,31 @@ func BaiduDo2Url(auth *Auth, signParam *SignParameter) string {
 
 	s := BaiduDo(auth, signParam)
 
-	u.WriteString(auth.Host)
-	if auth.Host[len(auth.Host) - 1] != '/' {
-		u.WriteString("/")
-	}
-
-	u.WriteString(signParam.Bucket)
+	u.WriteString("http://")
+	u.WriteString(strings.Trim(auth.Host, "/"))
 	u.WriteString("/")
 
-	if len(signParam.Object) > 0 {
-		u.WriteString(url.QueryEscape(signParam.Object[1:]))
+	u.WriteString(strings.Trim(signParam.Bucket, "/"))
+
+	objStr := strings.TrimLeft(signParam.Object, "/")
+
+	if len(objStr) > 0 {
+		u.WriteString("/")
+		u.WriteString(url.QueryEscape(objStr))
 	}
 
 	u.WriteString("?sign=")
 	u.WriteString(s)
 	if signParam.Time != "" {
-		u.WriteString("&Time="); u.WriteString(signParam.Time)
+		u.WriteString("&time="); u.WriteString(signParam.Time)
 	}
 
 	if signParam.Ip != "" {
-		u.WriteString("&Ip="); u.WriteString(signParam.Ip)
+		u.WriteString("&ip="); u.WriteString(signParam.Ip)
 	}
 
 	if signParam.Size != "" {
-		u.WriteString("&Size="); u.WriteString(signParam.Size)
+		u.WriteString("&size="); u.WriteString(signParam.Size)
 	}
 
 	return u.String()

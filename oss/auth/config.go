@@ -13,5 +13,5 @@ type AuthProcessor struct {
 
 
 var AuthProcessors = []AuthProcessor {
-	AuthProcessor{regexp.MustCompile("$baidu"), provider.BaiduDo, provider.BaiduDo2Url},
+	AuthProcessor{regexp.MustCompile("^baidu"), BaiduDo, BaiduDo2Url},
 }

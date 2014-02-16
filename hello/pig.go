@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"strings"
+	"github.com/junwudu/oss/utils"
 )
 
 
@@ -37,5 +39,8 @@ func main() {
 	y := "yes"
 	fmt.Println(y[0])
 
+	fmt.Println(strings.TrimLeft("/", "/"))
+
+	fmt.Println(utils.Unescape("XhAUN1n6ilIR57Q9xEu3%2Bpvn5Uo%3D"))
 }
 

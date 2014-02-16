@@ -1,16 +1,23 @@
-package provider
+package auth
 
 import (
 	"testing"
-	"github.com/junwudu/oss/auth"
-	"fmt"
 )
 
 
 
 func TestBaiduDo(t *testing.T) {
-	a := auth.Auth{auth.AccessInfo{"key", []byte("secret")}, "bcs.baidu.com", "baidu"}
-	p := auth.SignParameter{"PUT", "/", "", "", "", ""}
+	a := Auth{AccessInfo{"mzx6uUfGhzNiidxNuRjaEmTc", []byte("TNmHdLcEPBUI1cmNr2GD1tL5YRTvb72l")}, "bcs.duapp.com", "baidu"}
+	p := SignParameter{"PUT", "mytestoss", "/", "", "", ""}
 
-	fmt.Println(BaiduDo(&a, &p))
+	if url := BaiduDo2Url(&a, &p);
+		url != "http://bcs.duapp.com/mytestoss?sign=MBO:mzx6uUfGhzNiidxNuRjaEmTc:Ov8AyKZBJS94VRDIRuczUxzv2Rg%3D" {
+		t.Fatal(url)
+	}
+
+	p = SignParameter{"GET", "mytestoss", "/boot", "", "", ""}
+	if url := BaiduDo2Url(&a, &p);
+		url != "http://bcs.duapp.com/mytestoss/boot?sign=MBO:mzx6uUfGhzNiidxNuRjaEmTc:Dx6wWn7ryFzrYvKblmmVPOvp1w8%3D" {
+		t.Fatal(url)
+	}
 }

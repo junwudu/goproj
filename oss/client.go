@@ -2,36 +2,29 @@ package oss
 
 import (
 	"github.com/junwudu/oss/auth"
-	"net/http"
 )
 
 
-
 type Client struct {
-	Auth auth.Auth
+	authorize auth.Auth
 }
 
 
-func NewClient(provider auth.Provider) Client {
+func NewClient(provider string) Client {
 	var client Client
-	client.Auth = auth.NewAuth(provider)
-
+	client.authorize = auth.Provide(provider)
 	return client
 }
 
 
-func (client *Client) GetProvider() string {
-	return string(client.Auth.Provider)
-}
-
-
 func (client *Client) SignedUrl(method string, bucket string, object string, time string, ip string, size string) string {
-	client.Auth.Method = method
-	client.Auth.Bucket = bucket
-	client.Auth.Object = object
-	client.Auth.Time = time
-	client.Auth.Ip = ip
-	client.Auth.Size = size
-	return client.Auth.SignedUrl()
+
+	p := auth.SignParameter{method, bucket, object, time, ip, size}
+	r, err := client.authorize.SignedUrl(&p)
+	if err != nil {
+		panic(err)
+	}
+
+	return r
 }
 
