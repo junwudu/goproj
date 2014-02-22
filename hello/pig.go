@@ -1,30 +1,26 @@
 package main
 
-import "strconv"
-
-import "time"
-
-import "fmt"
-
 import (
-
+	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
 )
+
+func M(p *[]string) {
+	*p = make([]string, 2)
+	*p = append(*p, "yes")
+}
 
 
 type S struct {
-	A string
-	B string
+
 }
 
 func main() {
 
-	x := "1390308721"
-	i, _ :=strconv.ParseInt(x, 10, 32)
-	println(i)
-	t := time.Unix(i, 0)
+	fmt.Println(url.QueryEscape("$-_.+!*'(),"))
 
-	fmt.Println(t.Format(time.ANSIC))
-	fmt.Println(time.Now().Unix())
-
+	fmt.Println("%" + strings.ToUpper(strconv.FormatInt(int64([]byte("-")[0]), 16)))
 }
 

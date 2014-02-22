@@ -6,25 +6,30 @@ import (
 
 
 type Client struct {
-	authorize auth.Auth
+	authorize auth.Authorize
+	Provider string
 }
 
 
-func NewClient(provider string) Client {
+var GetClient = func() func(provider string) Client {
 	var client Client
-	client.authorize = auth.Provide(provider)
-	return client
-}
 
+	return func(provider string) Client {
 
-func (client *Client) SignedUrl(method string, bucket string, object string, time string, ip string, size string) string {
+		if client.Provider == provider {
+			return client
+		}
 
-	p := auth.SignParameter{method, bucket, object, time, ip, size}
-	r, err := client.authorize.SignedUrl(&p)
-	if err != nil {
-		panic(err)
+		client.Provider = provider
+		client.authorize = auth.Provide(provider)
+		return client
 	}
+}()
 
-	return r
+
+func (client Client) SignedUrl(method string, bucket string, object string, time string, ip string, size string) (url string, err error) {
+	param := auth.SignParameter{method, bucket, object, time, ip, size}
+	url, err = client.authorize.Sign(&param)
+	return
 }
 

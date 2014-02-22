@@ -8,14 +8,18 @@ import (
 	"bytes"
 	"hash"
 	"strings"
-	"fmt"
+	"errors"
+	"github.com/junwudu/goproj/oss/utils"
 )
 
 
-func BaiduDo(auth *Auth, signParam *SignParameter) string {
-	flag, data := content(signParam)
+type BaiduAuth struct {
+	AuthInfo
+}
 
-	fmt.Println(flag, string(data))
+
+func (auth BaiduAuth) sign(signParam *SignParameter) (result string, err error) {
+	flag, data := content(signParam)
 
 	var f func() hash.Hash = sha1.New
 
@@ -26,18 +30,25 @@ func BaiduDo(auth *Auth, signParam *SignParameter) string {
 	var buff bytes.Buffer
 	buff.WriteString(flag); buff.WriteString(":")
 	buff.WriteString(auth.Key); buff.WriteString(":")
-	buff.WriteString(url.QueryEscape(signed))
-	return buff.String()
+	buff.WriteString(url.QueryEscape(utils.UrlPreEncode(signed)))
+	result = buff.String()
+	return
 }
 
 
-func BaiduDo2Url(auth *Auth, signParam *SignParameter) string {
+func (auth BaiduAuth) Sign(signParam *SignParameter) (sUrl string, err error) {
 
 	var u bytes.Buffer
 
-	s := BaiduDo(auth, signParam)
+	s, err := auth.sign(signParam)
 
 	u.WriteString("http://")
+
+	if auth.Host == "" {
+		err = errors.New("Host is empty")
+		return
+	}
+
 	u.WriteString(strings.Trim(auth.Host, "/"))
 	u.WriteString("/")
 
@@ -47,7 +58,7 @@ func BaiduDo2Url(auth *Auth, signParam *SignParameter) string {
 
 	if len(objStr) > 0 {
 		u.WriteString("/")
-		u.WriteString(url.QueryEscape(objStr))
+		u.WriteString(url.QueryEscape(utils.UrlPreEncode(objStr)))
 	}
 
 	u.WriteString("?sign=")
@@ -64,7 +75,8 @@ func BaiduDo2Url(auth *Auth, signParam *SignParameter) string {
 		u.WriteString("&size="); u.WriteString(signParam.Size)
 	}
 
-	return u.String()
+	sUrl = u.String()
+	return
 }
 
 

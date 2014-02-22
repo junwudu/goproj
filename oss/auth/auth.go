@@ -1,17 +1,12 @@
 package auth
 
-
-import (
-	"errors"
-)
-
 type AccessInfo struct {
 	Key string
 	Secret []byte
 }
 
 
-type Auth struct {
+type AuthInfo struct {
 	AccessInfo
 	Host string
 	Provider string
@@ -28,38 +23,6 @@ type SignParameter struct {
 }
 
 
-
-func (auth Auth) Sign(signPara *SignParameter) (result string, err error) {
-
-	for _, processor := range AuthProcessors {
-		if processor.Provider.MatchString(auth.Provider) {
-			result = processor.Do(&auth, signPara)
-		}
-	}
-
-	if len(result) < 1 {
-		err = errors.New("provider not match")
-	}
-
-	return
+type Authorize interface {
+	Sign(*SignParameter) (string, error)
 }
-
-
-func (auth Auth) SignedUrl(signPara *SignParameter) (result string, err error) {
-
-	for _, processor := range AuthProcessors {
-		if processor.Provider.MatchString(auth.Provider) {
-			result = processor.Do2Url(&auth, signPara)
-		}
-	}
-
-	if len(result) < 1 {
-		err = errors.New("provider not match")
-	}
-
-	return
-}
-
-
-
-
