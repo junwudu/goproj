@@ -5,6 +5,6 @@ import (
 )
 
 type Parser interface {
-	Parse(reader io.Reader) (result interface {}, err error)
+	Parse(reader io.Reader, result interface {}) error
 }
 

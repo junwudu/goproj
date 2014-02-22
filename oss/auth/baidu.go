@@ -8,11 +8,14 @@ import (
 	"bytes"
 	"hash"
 	"strings"
+	"fmt"
 )
 
 
 func BaiduDo(auth *Auth, signParam *SignParameter) string {
 	flag, data := content(signParam)
+
+	fmt.Println(flag, string(data))
 
 	var f func() hash.Hash = sha1.New
 

@@ -1,46 +1,30 @@
 package main
 
+import "strconv"
+
+import "time"
+
+import "fmt"
+
 import (
-	"fmt"
-	"reflect"
-	"strings"
-	"github.com/junwudu/oss/utils"
+
 )
 
 
-func G() (result interface {}) {
-
-	m := map[string]string{"a": "pp", "b": "cc"}
-
-	result = interface {}(m)
-
-	return
-}
-
-
 type S struct {
-	x int
-	y int
+	A string
+	B string
 }
-
-
-func (s *S) setX(x int) {
-	s.x = x
-}
-
 
 func main() {
-	fmt.Printf("%T-->%v", G(), reflect.TypeOf(G()))
 
-	var s S
-	s.setX(34)
-	fmt.Println(s)
+	x := "1390308721"
+	i, _ :=strconv.ParseInt(x, 10, 32)
+	println(i)
+	t := time.Unix(i, 0)
 
-	y := "yes"
-	fmt.Println(y[0])
+	fmt.Println(t.Format(time.ANSIC))
+	fmt.Println(time.Now().Unix())
 
-	fmt.Println(strings.TrimLeft("/", "/"))
-
-	fmt.Println(utils.Unescape("XhAUN1n6ilIR57Q9xEu3%2Bpvn5Uo%3D"))
 }
 

@@ -1,7 +1,7 @@
 package oss
 
 import (
-	"github.com/junwudu/oss/auth"
+	"github.com/junwudu/goproj/oss/auth"
 )
 
 
