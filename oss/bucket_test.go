@@ -91,11 +91,13 @@ func TestListBucket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, bucket := range buckets {
+	for i, bucket := range buckets {
 		if bucket.Name == aa || bucket.Name == bb || bucket.Name == cc {
 			continue
 		}
-		t.Error(bucket.Name + " is not exist")
+		if i < 3 {
+			t.Error(bucket.Name + " is not exist")
+		}
 	}
 
 	ensureNotExist(aa)

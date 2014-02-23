@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"fmt"
 	"time"
-	"github.com/junwudu/goproj/oss/utils"
 	"strconv"
+	"github.com/junwudu/goproj/oss/errors"
 )
 
 
@@ -31,7 +31,7 @@ type Bucket struct {
 
 
 func (bucket Bucket) BornTime() time.Time {
-	t, err := strconv.ParseInt(bucket.Born, 10, 32)
+	t, err := strconv.ParseInt(bucket.Born, 10, 64)
 	if err != nil {
 		panic(err)
 	}
@@ -57,7 +57,7 @@ func ListBucket(client *Client, parser Parser) (buckets []Bucket, err error) {
 
 	defer resp.Body.Close()
 
-	err = utils.GetError(resp, client.Provider)
+	err = errors.GetError(resp, client.Provider)
 	if err == nil {
 		err = parser.Parse(resp.Body, &buckets)
 	}
@@ -83,7 +83,7 @@ func CreateBucket(client *Client, name string) (err error) {
 		return
 	}
 
-	err = utils.GetError(resp, client.Provider)
+	err = errors.GetError(resp, client.Provider)
 
 	return
 }
@@ -106,7 +106,7 @@ func DeleteBucket(client *Client, name string) (err error) {
 		return
 	}
 
-	err = utils.GetError(resp, client.Provider)
+	err = errors.GetError(resp, client.Provider)
 
 	return
 }

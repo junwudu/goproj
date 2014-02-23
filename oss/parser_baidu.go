@@ -4,6 +4,8 @@ import (
 	"io"
 	"io/ioutil"
 	"encoding/json"
+	"strconv"
+	"time"
 )
 
 type BaiduParser struct {
@@ -21,6 +23,27 @@ type baiduBucket struct {
 }
 
 
+type baiduObject struct {
+	Version_Key string
+	Object string
+	SuperFile string
+	Size string
+	Parent_dir string
+	Is_dir string
+	MDatetime string
+	Ref_Key string
+	Content_md5 string
+}
+
+type baiduObjects struct {
+	Object_Total uint64
+	Bucket string
+	Start uint64
+	Limit uint64
+	Object_List []baiduObject
+}
+
+
 func (p *BaiduParser) Parse(reader io.Reader, result interface{}) error {
 
 	switch result.(type) {
@@ -30,6 +53,8 @@ func (p *BaiduParser) Parse(reader io.Reader, result interface{}) error {
 	case *[]Bucket:
 		return parseListBucket(reader, result.(*[]Bucket))
 
+	case *[]Object:
+		return parseListObject(reader, result.(*[]Object))
 	}
 
 }
@@ -49,20 +74,59 @@ func parseListBucket(reader io.Reader, buckets *[]Bucket) error {
 		return err
 	}
 
-	bs := make([]Bucket, len(jObj))
-	*buckets = bs
+	bList := make([]Bucket, len(jObj))
+	*buckets = bList
 
 	for i, b := range jObj {
-		bs[i].Name = b.Bucket_Name
-		bs[i].Born = b.CDateTime
-		bs[i].Capacity =  b.Total_Capacity
-		bs[i].Used = b.Used_Capacity
-		bs[i].Status = b.Status
-		bs[i].Location = b.Region
+		bList[i].Name = b.Bucket_Name
+		bList[i].Born = b.CDateTime
+		bList[i].Capacity =  b.Total_Capacity
+		bList[i].Used = b.Used_Capacity
+		bList[i].Status = b.Status
+		bList[i].Location = b.Region
 	}
 
 	return nil
 }
 
 
+func parseListObject(reader io.Reader, objects *[]Object) error {
+	data, err := ioutil.ReadAll(reader)
+
+	if err != nil {
+		return err
+	}
+
+	var objList baiduObjects
+
+	err = json.Unmarshal(data, &objList)
+	if err != nil {
+		return err
+	}
+
+	oList := make([]Object, len(objList.Object_List))
+	*objects = oList
+
+	for i, o := range objList.Object_List {
+		oList[i].Bucket = objList.Bucket
+		oList[i].Pos = objList.Start + uint64(i)
+		oList[i].IsDir = o.Is_dir != "0"
+		oList[i].Name = o.Object
+		oList[i].ParentDir = o.Parent_dir
+
+		t, err := strconv.ParseInt(o.MDatetime, 10, 64)
+		if err == nil {
+			oList[i].ModifyTime = time.Unix(t, 0)
+		}
+
+		size, err := strconv.ParseUint(o.Size, 10, 64)
+		if err == nil {
+			oList[i].Size = size
+		}
+
+		oList[i].MD5 = o.Content_md5
+	}
+
+	return nil
+}
 
