@@ -4,8 +4,17 @@ import (
 	"time"
 	"net/http"
 	"github.com/junwudu/goproj/oss/errors"
+	"strings"
+	"strconv"
+	"bytes"
+	"mime"
+	"path/filepath"
+	"os"
+	"io/ioutil"
 	"fmt"
 	"io"
+	"crypto/md5"
+	"encoding/hex"
 )
 
 
@@ -25,7 +34,7 @@ type Object struct {
 	ModifyTime time.Time
 
 	/*bucket that in */
-	Bucket string
+	Bucket Bucket
 
 	/*starting pos in this bucket*/
 	Pos uint64
@@ -33,7 +42,7 @@ type Object struct {
 	/*content type (common this field in http header)*/
 	Type string
 
-	Data io.Reader
+	Data []byte
 
 	/*Range start*/
 	Start uint64
@@ -48,16 +57,68 @@ type Object struct {
 
 	/*Acl of this object*/
 	Acl string
+
+	/*location*/
+	Location string
+}
+
+
+func (object *Object) SetName(name string) {
+	if name[0] != '/' {
+		object.Name = "/" + name
+	} else {
+		object.Name = name
+	}
+
+	object.Alias = object.Name[strings.LastIndex(object.Name, "/") + 1 : len(object.Name)]
+
+	if object.Type == "" {
+		rIdx := strings.LastIndex(object.Name, ".")
+		if rIdx >= 0 {
+			ext := object.Name[rIdx : len(object.Name)]
+			object.Type = mime.TypeByExtension(ext)
+		}
+	}
+}
+
+func (object *Object) SetBucket(bucket string) {
+	var b Bucket
+	b.Name = bucket
+	object.Bucket = b
+}
+
+
+func (object *Object) SetDataFromFile(f interface {}) func() {
+	var fp *os.File
+	switch f.(type) {
+	default:
+		panic(fmt.Sprintf("%T-%v is not path or File object", f, f))
+	case string:
+		if filepath.IsAbs(f.(string)) {
+			fp, _ = os.OpenFile(f.(string), os.O_RDONLY, os.FileMode(0666))
+		}
+	case *os.File:
+		fp = f.(*os.File)
+	}
+
+	if fp != nil {
+		object.Data, _ = ioutil.ReadAll(fp)
+		object.Size = uint64(len(object.Data))
+		//return callable for close file
+		return func() {fp.Close()}
+	}
+
+	return func() {}
 }
 
 
 func (object *Object) ValidPut() (err error) {
 
-	if len(object.Name) < 2 || object.Name[0] != '/' {
+	if len (object.Name) < 2 || object.Name[0] != '/'  {
 		err = errors.Error("object name is valid fail: " + object.Name)
 	}
 
-	if object.Bucket == "" {
+	if object.Bucket.Name == "" {
 		err = errors.Error("bukcet is not set")
 	}
 
@@ -66,16 +127,19 @@ func (object *Object) ValidPut() (err error) {
 	}
 
 	if object.Type == "" {
-		err = errors.Error("content type is set")
+		err = errors.Error("content-type is not set")
 	}
+
+	if object.Size == 0 {
+		err = errors.Error("size is 0")
+	}
+
 	return
 }
 
 
-func ListObject(client *Client, bucket string, parser Parser) (objects []Object, err error) {
-	url, err := client.SignedUrl("GET", bucket, "/", "", "", "")
-
-	fmt.Println(url)
+func ListObject(client *Client, bucket Bucket, parser Parser) (objects []Object, err error) {
+	url, err := client.SignedUrl("GET", bucket.Name, "/", "", "", "")
 
 	if err != nil {
 		return
@@ -99,10 +163,9 @@ func ListObject(client *Client, bucket string, parser Parser) (objects []Object,
 }
 
 
+func DeleteObject(client *Client, object *Object) (err error) {
+	url, err := client.SignedUrl("DELETE", object.Bucket.Name, object.Name, "", "", "")
 
-func DeleteObject(client *Client, bucket string, object string) (err error) {
-	url, err := client.SignedUrl("DELETE", bucket, object, "", "", "")
-	fmt.Println(url)
 	if err != nil {
 		return
 	}
@@ -123,23 +186,26 @@ func DeleteObject(client *Client, bucket string, object string) (err error) {
 }
 
 
-func PutObject(client *Client, bucket string, object *Object) (err error) {
+func PutObject(client *Client, object *Object) (err error) {
 
 	err = object.ValidPut()
 	if err != nil {
 		return
 	}
 
-	url, err := client.SignedUrl("POST", bucket, object.Name, "", "", "")
-	fmt.Println(url)
+	url, err := client.SignedUrl("PUT", object.Bucket.Name, object.Name, "", "", "")
 	if err != nil {
 		return
 	}
 
-	req, err := http.NewRequest("POST", url, object.Data)
+	req, err := http.NewRequest("PUT", url, bytes.NewReader(object.Data))
 
 	if err != nil {
 		return
+	}
+
+	if req.Header.Get("Content-Length") == "" {
+		req.Header.Set("Content-Length", strconv.FormatUint(object.Size, 10))
 	}
 
 	if req.Header.Get("Content-Type") == "" {
@@ -150,8 +216,8 @@ func PutObject(client *Client, bucket string, object *Object) (err error) {
 		req.Header.Set("Content-Disposition", object.Alias)
 	}
 
-	if req.Header.Get("x-bs-acl") == "" {
-		req.Header.Set("x-bs-acl", object.Acl)
+	if req.Header.Get(client.Provider.Acl()) == "" {
+		req.Header.Set(client.Provider.Acl(), object.Acl)
 	}
 
 	if len(object.Meta) > 0 {
@@ -180,6 +246,157 @@ func PutObject(client *Client, bucket string, object *Object) (err error) {
 }
 
 
-func GetObject(client *Client, bucket string, object *Object) {
+func GetObject(client *Client, object *Object) (err error) {
+	url, err := client.SignedUrl("GET", object.Bucket.Name, object.Name, "", "", "")
+	if err != nil {
+		return
+	}
+
+	//download to file
+	if object.Location != "" {
+		fName := filepath.Join(object.Location, object.Alias)
+		fp, err := os.OpenFile(fName, os.O_APPEND| os.O_CREATE, os.FileMode(0666))
+		if err != nil {
+			goto MEM
+		}
+		defer fp.Close()
+
+		stat, err := fp.Stat()
+		if err != nil {
+			goto MEM
+		}
+
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return err
+		}
+
+		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", stat.Size()))
+		req.Header.Set("response-content-disposition", object.Alias)
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		object.Size = uint64(stat.Size())
+		object.Start = uint64(stat.Size())
+		wCount, err := io.Copy(fp, resp.Body)
+		if err != nil {
+			object.Size += uint64(wCount)
+		}
+
+		object.Type = resp.Header.Get("Content-Type")
+
+		//modify time
+		object.ModifyTime, _ = time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
+
+		object.MD5 = resp.Header.Get("ETag")
+
+		return nil
+	}
+
+MEM:
+	resp, err := http.Get(url)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	object.Data, err = ioutil.ReadAll(resp.Body)
+	object.Size = uint64(len(object.Data))
+
+	object.Type = resp.Header.Get("Content-Type")
+
+	//modify time
+	object.ModifyTime, _ = time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
+
+	object.MD5 = resp.Header.Get("ETag")
+
+	md := md5.Sum(object.Data)
+	if mds := hex.EncodeToString(md[0:]); mds != object.MD5 {
+		err = errors.Error(fmt.Sprintf("data md5:%s != %s(recived md5)", mds, object.MD5))
+	}
+
+	return
+}
+
+
+func CopyObject(client *Client, dstObject *Object, srcObject *Object, copyMeta bool) (err error) {
+	url, err := client.SignedUrl("PUT", dstObject.Bucket.Name, dstObject.Name, "", "", "")
+	if err != nil {
+		return
+	}
+
+	req, err := http.NewRequest("PUT", url, nil)
+	if err != nil {
+		return
+	}
+
+	req.Header.Set(client.Provider.ObjectCopy(), client.ObjectUrl(srcObject))
+	if !copyMeta {
+		req.Header.Set(client.Provider.ObjectCopyDrt(), client.Provider.ObjectCopyDrtForReplace())
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+
+	err = errors.GetError(resp, client.Provider)
+
+	if err == nil {
+		md5 := resp.Header.Get("Content-MD5")
+		if md5 == "" {
+			err = errors.Error("copy error! content md5 empty")
+		} else {
+			dstObject.MD5 = md5
+		}
+	}
+
+	return
 
 }
+
+
+func HeadObject(client *Client, object *Object) (err error) {
+	url, err := client.SignedUrl("HEAD", object.Bucket.Name, object.Name, "", "", "")
+	if err != nil {
+		return
+	}
+
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+
+	err = errors.GetError(resp, client.Provider)
+
+	if err == nil {
+		object.MD5 = resp.Header.Get("Content-MD5")
+		object.Size, _ = strconv.ParseUint(resp.Header.Get("Content-Length"), 10, 64)
+		object.Type = resp.Header.Get("Content-Type")
+
+		//modify time
+		object.ModifyTime, _ = time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
+
+		//meta headers
+		metaPrefix := client.Provider.MetaPrefix()
+		for k, v := range resp.Header {
+			if idx := strings.Index(k, metaPrefix); idx != -1 {
+				if object.Meta == nil {
+					object.Meta = make(map[string]string)
+				}
+				object.Meta[k] = strings.Join(v, ";")
+			}
+		}
+	}
+	return
+}
+

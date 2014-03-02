@@ -1,15 +1,26 @@
 package auth
 
 type AccessInfo struct {
-	Key string
-	Secret []byte
+	key string
+	secret []byte
+	host string
+	provider string
 }
 
+func (ac AccessInfo) Name() string {
+	return ac.provider
+}
 
-type AuthInfo struct {
-	AccessInfo
-	Host string
-	Provider string
+func (ac AccessInfo) Key() string {
+	return ac.key
+}
+
+func (ac AccessInfo) Host() string {
+	return ac.host
+}
+
+func (ac AccessInfo) Secret() []byte {
+	return ac.secret
 }
 
 
@@ -25,4 +36,23 @@ type SignParameter struct {
 
 type Authorize interface {
 	Sign(*SignParameter) (string, error)
+}
+
+
+type Auth interface {
+	Name() string
+	Host() string
+	Key() string
+	Secret() []byte
+	Authorize
+}
+
+
+func GetAuth (ps string) Auth {
+	switch ps {
+	default:
+		return BaiduAuth{AccessInfo{"mzx6uUfGhzNiidxNuRjaEmTc", []byte("TNmHdLcEPBUI1cmNr2GD1tL5YRTvb72l"), "bcs.duapp.com", ps}}
+	case "baidu":
+		return BaiduAuth{AccessInfo{"mzx6uUfGhzNiidxNuRjaEmTc", []byte("TNmHdLcEPBUI1cmNr2GD1tL5YRTvb72l"), "bcs.duapp.com", ps}}
+	}
 }

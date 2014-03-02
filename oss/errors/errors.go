@@ -13,7 +13,7 @@ type _error struct {
 	Msg string
 }
 
-func (e *_error) Error() string {
+func (e _error) Error() string {
 	return e.Msg
 }
 

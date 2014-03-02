@@ -5,23 +5,9 @@ import (
 )
 
 
-func ensureNotExist(bucket string) {
-	c := GetClient("baidu")
-	DeleteBucket(&c, bucket)
-}
+func isExistBucket(bucket string) bool {
 
-
-func ensureExist(bucket string) {
-	c := GetClient("baidu")
-	CreateBucket(&c, bucket)
-}
-
-
-func isExist(bucket string) bool {
-	c := GetClient("baidu")
-	var b BaiduParser
-
-	buckets, err := ListBucket(&c, &b)
+	buckets, err := ListBucket(&client, &parser)
 	if err != nil {
 		panic(err)
 	}
@@ -31,62 +17,69 @@ func isExist(bucket string) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
 
 func TestCreateBucket(t *testing.T) {
-	c := GetClient("baidu")
 
 	testBucketName := "testjunmm"
 
-	ensureNotExist(testBucketName)
+	if isExistBucket(testBucketName) {
+		err := DeleteBucket(&client, testBucketName)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 
-	err := CreateBucket(&c, testBucketName)
+	err := CreateBucket(&client, testBucketName)
 
 	if err != nil {
 		t.Error(err)
 	}
 
-	if !isExist(testBucketName) {
-		t.Error("is not created")
+	if isExistBucket(testBucketName) {
+		t.Skip(testBucketName + " is Created!")
 	}
 
 }
+
 
 func TestDeleteBucket(t *testing.T) {
-	c := GetClient("baidu")
 	testBucketName := "testjunmm"
 
-	ensureExist(testBucketName)
+	if !isExistBucket(testBucketName) {
+		err := CreateBucket(&client, testBucketName)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 
-	err := DeleteBucket(&c, testBucketName)
-
+	err := DeleteBucket(&client, testBucketName)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if isExist(testBucketName) {
-		t.Fatal("is not deleted")
+	if !isExistBucket(testBucketName) {
+		t.Skip(testBucketName + " is Deleted!")
 	}
 }
 
+
 func TestListBucket(t *testing.T) {
-	c := GetClient("baidu")
-
-
 	aa := "test18121"
 	bb := "test18122"
 	cc := "testbucket18123"
 
-	ensureExist(aa)
-	ensureExist(bb)
-	ensureExist(cc)
+	CreateBucket(&client, aa)
+	CreateBucket(&client, bb)
+	CreateBucket(&client, cc)
 
-	var b BaiduParser
+	defer DeleteBucket(&client, aa)
+	defer DeleteBucket(&client, bb)
+	defer DeleteBucket(&client, cc)
 
-	buckets, err := ListBucket(&c, &b)
+	buckets, err := ListBucket(&client, &parser)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,10 +92,6 @@ func TestListBucket(t *testing.T) {
 			t.Error(bucket.Name + " is not exist")
 		}
 	}
-
-	ensureNotExist(aa)
-	ensureNotExist(bb)
-	ensureNotExist(cc)
 
 }
 

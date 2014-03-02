@@ -108,7 +108,9 @@ func parseListObject(reader io.Reader, objects *[]Object) error {
 	*objects = oList
 
 	for i, o := range objList.Object_List {
-		oList[i].Bucket = objList.Bucket
+		var b Bucket
+		b.Name = objList.Bucket
+		oList[i].Bucket = b
 		oList[i].Pos = objList.Start + uint64(i)
 		oList[i].IsDir = o.Is_dir != "0"
 		oList[i].Name = o.Object

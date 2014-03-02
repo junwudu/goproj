@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"io"
+	"fmt"
 )
 
 type BaiduError struct {
@@ -46,7 +47,7 @@ func (baiduError *BaiduError) Parse(reader io.Reader) {
 
 
 func (baiduError *BaiduError) Error() string {
-	return baiduError.Description
+	return fmt.Sprintf("%d->%d:%s", baiduError.ErrorCode, baiduError.StatusCode, baiduError.Description)
 }
 
 

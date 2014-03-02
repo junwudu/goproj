@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"crypto/md5"
+	"encoding/hex"
+	"strings"
 )
 
 func M(p *[]string) {
@@ -16,11 +19,24 @@ type S struct {
 }
 
 
+type A struct {
+	b string
+}
 
 func main() {
-	m := make(map[string]string, 3)
-	m["33"] = "3423"
 
-	fmt.Println(len(m))
+
+	a := A{"3424"}
+
+	fmt.Println(a)
+
+	data := md5.Sum([]byte("nihao"))
+	fmt.Println(hex.EncodeToString(data[0:]))
+
+	x := "/baidu/nihao"
+
+	fmt.Println(x[strings.LastIndex(x, "/") + 1  : len(x)])
+
+
 }
 

@@ -14,8 +14,9 @@ import (
 
 
 type BaiduAuth struct {
-	AuthInfo
+	AccessInfo
 }
+
 
 
 func (auth BaiduAuth) sign(signParam *SignParameter) (result string, err error) {
@@ -23,13 +24,13 @@ func (auth BaiduAuth) sign(signParam *SignParameter) (result string, err error) 
 
 	var f func() hash.Hash = sha1.New
 
-	h := hmac.New(f, auth.Secret)
+	h := hmac.New(f, auth.Secret())
 	h.Write(data)
 	signed := base64.URLEncoding.EncodeToString(h.Sum(nil))
 
 	var buff bytes.Buffer
 	buff.WriteString(flag); buff.WriteString(":")
-	buff.WriteString(auth.Key); buff.WriteString(":")
+	buff.WriteString(auth.Key()); buff.WriteString(":")
 	buff.WriteString(url.QueryEscape(utils.UrlPreEncode(signed)))
 	result = buff.String()
 	return
@@ -44,12 +45,12 @@ func (auth BaiduAuth) Sign(signParam *SignParameter) (sUrl string, err error) {
 
 	u.WriteString("http://")
 
-	if auth.Host == "" {
+	if auth.Host() == "" {
 		err = errors.New("Host is empty")
 		return
 	}
 
-	u.WriteString(strings.Trim(auth.Host, "/"))
+	u.WriteString(strings.Trim(auth.Host(), "/"))
 	u.WriteString("/")
 
 	u.WriteString(strings.Trim(signParam.Bucket, "/"))
@@ -111,4 +112,3 @@ func content(signParam *SignParameter) (string, []byte) {
 
 	return flag.String(), ct.Bytes()
 }
-

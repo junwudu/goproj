@@ -2,7 +2,6 @@ package oss
 
 import (
 	"net/http"
-	"fmt"
 	"time"
 	"strconv"
 	"github.com/junwudu/goproj/oss/errors"
@@ -44,8 +43,6 @@ func (bucket Bucket) BornTime() time.Time {
 func ListBucket(client *Client, parser Parser) (buckets []Bucket, err error) {
 
 	url, err := client.SignedUrl("GET", "", "/", "", "", "")
-	fmt.Println(url)
-
 	if err != nil {
 		return
 	}
@@ -68,7 +65,6 @@ func ListBucket(client *Client, parser Parser) (buckets []Bucket, err error) {
 
 func CreateBucket(client *Client, name string) (err error) {
 	url, err := client.SignedUrl("PUT", name, "/", "", "", "")
-	fmt.Println(url)
 	if err != nil {
 		return
 	}
@@ -91,7 +87,6 @@ func CreateBucket(client *Client, name string) (err error) {
 
 func DeleteBucket(client *Client, name string) (err error) {
 	url, err := client.SignedUrl("DELETE", name, "/", "", "", "")
-	fmt.Println(url)
 	if err != nil {
 		return
 	}
