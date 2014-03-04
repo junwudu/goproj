@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"time"
+	"net/http"
 )
 
 type BaiduParser struct {
@@ -79,9 +80,9 @@ func parseListBucket(reader io.Reader, buckets *[]Bucket) error {
 
 	for i, b := range jObj {
 		bList[i].Name = b.Bucket_Name
-		bList[i].Born = b.CDateTime
-		bList[i].Capacity =  b.Total_Capacity
-		bList[i].Used = b.Used_Capacity
+		bList[i].Born, _ = time.Parse(http.TimeFormat, b.CDateTime)
+		bList[i].Capacity, _ =  strconv.ParseUint(b.Total_Capacity, 10, 64)
+		bList[i].Used, _ = strconv.ParseUint(b.Used_Capacity, 10, 64)
 		bList[i].Status = b.Status
 		bList[i].Location = b.Region
 	}

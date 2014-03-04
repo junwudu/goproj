@@ -3,6 +3,8 @@ package oss
 import (
 	"github.com/junwudu/goproj/oss/auth"
 	"fmt"
+	"net/http"
+	"github.com/junwudu/goproj/oss/errors"
 )
 
 
@@ -35,4 +37,28 @@ func (client Client) SignedUrl(method string, bucket string, object string, time
 
 func (client Client) ObjectUrl(object *Object) string {
 	return fmt.Sprintf("http://%s/%s%s", client.Provider.Host(), object.Bucket.Name, object.Name)
+}
+
+
+
+func (client Client) ListBucket(parser Parser) (buckets []Bucket, err error) {
+
+	url, err := client.SignedUrl("GET", "", "/", "", "", "")
+	if err != nil {
+		return
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return
+	}
+
+	defer resp.Body.Close()
+
+	err = errors.GetError(resp, client.Provider)
+	if err == nil {
+		err = parser.Parse(resp.Body, &buckets)
+	}
+
+	return
 }

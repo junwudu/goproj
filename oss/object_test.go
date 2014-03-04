@@ -53,7 +53,7 @@ func ensureObject(object *Object) bool {
 }
 
 
-func isExist(object *Object) bool {
+func isExistObject(object *Object) bool {
 	err := HeadObject(&client, object)
 	return err == nil
 }
@@ -64,7 +64,7 @@ func TestPutObject(t *testing.T) {
 	object.SetName(fn)
 	object.SetBucket(bucket)
 
-	if isExist(&object) {
+	if isExistObject(&object) {
 		err := DeleteObject(&client, &object)
 		if err != nil {
 			t.Fatal(err)
@@ -82,7 +82,7 @@ func TestDeleteObject(t *testing.T) {
 	object.SetName(fn)
 	object.SetBucket(bucket)
 
-	if !isExist(&object) {
+	if !isExistObject(&object) {
 		if !ensureObject(&object) {
 			t.Error("can't put objcect ")
 		}
@@ -100,7 +100,7 @@ func TestCopyObject(t *testing.T) {
 	object.SetName(fn)
 	object.SetBucket(bucket)
 
-	if !isExist(&object) {
+	if !isExistObject(&object) {
 		if !ensureObject(&object) {
 			t.Error("can't put objcect ")
 		}
@@ -115,7 +115,7 @@ func TestCopyObject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !isExist(&dstObject) {
+	if !isExistObject(&dstObject) {
 		t.Error(dstObject.Name + "is not copied!")
 	}
 }
@@ -125,7 +125,7 @@ func TestGetObject(t *testing.T) {
 	object.SetName(fn)
 	object.SetBucket(bucket)
 
-	if !isExist(&object) {
+	if !isExistObject(&object) {
 		if !ensureObject(&object) {
 			t.Fatal("can't put objcect ")
 		}
@@ -149,13 +149,13 @@ func TestHeadObject(t *testing.T) {
 	object.SetName(fn)
 	object.SetBucket(bucket)
 
-	if !isExist(&object) {
+	if !isExistObject(&object) {
 		if !ensureObject(&object) {
 			t.Fatal("can't put objcect ")
 		}
 	}
 
-	if !isExist(&object) {
+	if !isExistObject(&object) {
 		t.Fatal("head faild")
 	}
 }
@@ -166,7 +166,7 @@ func TestListObject(t *testing.T) {
 	object.SetName(fn)
 	object.SetBucket(bucket)
 
-	if !isExist(&object) {
+	if !isExistObject(&object) {
 		if !ensureObject(&object) {
 			t.Fatal("can't put objcect ")
 		}

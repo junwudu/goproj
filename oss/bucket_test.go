@@ -2,12 +2,14 @@ package oss
 
 import (
 	"testing"
+	"fmt"
+	"github.com/junwudu/goproj/oss/errors"
 )
 
 
 func isExistBucket(bucket string) bool {
 
-	buckets, err := ListBucket(&client, &parser)
+	buckets, err := client.ListBucket(&parser)
 	if err != nil {
 		panic(err)
 	}
@@ -21,76 +23,143 @@ func isExistBucket(bucket string) bool {
 }
 
 
+func assertError(t *testing.T, err error, args...int) {
+	switch err.(type) {
+	default:
+		t.Fatal(err)
+	case *errors.BaiduError:
+		e := err.(*errors.BaiduError)
+
+		t.Log(e.Description)
+
+		if e.ErrorCode != args[0] {
+			t.Error(fmt.Sprintf("errorcode should be %d, but %d", -1001, e.ErrorCode))
+		}
+
+		if e.StatusCode != args[1] {
+			t.Error(fmt.Sprintf("err statuscode should be %d, but %d", 403, e.StatusCode))
+		}
+	}
+}
+
+
 func TestCreateBucket(t *testing.T) {
+	var testBucket Bucket
+	testBucket.Name = "testjunmm"
+	testBucket.Client = &client
 
-	testBucketName := "testjunmm"
-
-	if isExistBucket(testBucketName) {
-		err := DeleteBucket(&client, testBucketName)
+	if isExistBucket(testBucket.Name) {
+		err := testBucket.Delete()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	err := CreateBucket(&client, testBucketName)
+	if isExistBucket(testBucket.Name) {
+		t.Fatal(fmt.Sprintf("bucket %s has existed!", testBucket.Name))
+	}
 
+	err := testBucket.Create()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	if isExistBucket(testBucketName) {
-		t.Skip(testBucketName + " is Created!")
+	if !isExistBucket(testBucket.Name) {
+		t.Fatal("create bucket " + testBucket.Name + " is failed!")
 	}
 
+	//test recreate
+	err = testBucket.Create()
+	if err != nil {
+		assertError(t, err, -1001, 403)
+	}
 }
 
 
 func TestDeleteBucket(t *testing.T) {
-	testBucketName := "testjunmm"
+	var testBucket Bucket
+	testBucket.Name = "testjunmm"
+	testBucket.Client = &client
 
-	if !isExistBucket(testBucketName) {
-		err := CreateBucket(&client, testBucketName)
+	if !isExistBucket(testBucket.Name) {
+		err := testBucket.Create()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	err := DeleteBucket(&client, testBucketName)
-	if err != nil {
-		t.Error(err)
+	if !isExistBucket(testBucket.Name) {
+		t.Fatal("bucket can not be created : " + testBucket.Name)
 	}
 
-	if !isExistBucket(testBucketName) {
-		t.Skip(testBucketName + " is Deleted!")
+	//put object
+	var object Object
+	object.SetName(fn)
+	object.SetBucket(testBucket.Name)
+	if !ensureObject(&object) {
+		t.Error("can't put object")
+	} else {
+		err := testBucket.Delete()
+		if err != nil {
+			assertError(t, err, -1007, 403)
+		}
+
+		err = DeleteObject(&client, &object)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	err := testBucket.Delete()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if isExistBucket(testBucket.Name) {
+		t.Fatal("bucket can not be deleted : " + testBucket.Name)
+	}
+
+	err = testBucket.Delete()
+	if err != nil {
+		assertError(t, err, -42, 403)
 	}
 }
 
 
 func TestListBucket(t *testing.T) {
-	aa := "test18121"
-	bb := "test18122"
-	cc := "testbucket18123"
+	var aa Bucket
+	aa.Name = "test18121"
+	aa.Client = &client
+	var bb Bucket
+	bb.Name = "test18122"
+	bb.Client = &client
+	var cc Bucket
+	cc.Name = "testbucket18123"
+	cc.Client = &client
 
-	CreateBucket(&client, aa)
-	CreateBucket(&client, bb)
-	CreateBucket(&client, cc)
+	aa.Create()
+	bb.Create()
+	cc.Create()
 
-	defer DeleteBucket(&client, aa)
-	defer DeleteBucket(&client, bb)
-	defer DeleteBucket(&client, cc)
+	defer aa.Delete()
+	defer bb.Delete()
+	defer cc.Delete()
 
-	buckets, err := ListBucket(&client, &parser)
+	buckets, err := client.ListBucket(&parser)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for i, bucket := range buckets {
-		if bucket.Name == aa || bucket.Name == bb || bucket.Name == cc {
+	count := 0
+	for _, bucket := range buckets {
+		if bucket.Name == aa.Name || bucket.Name == bb.Name || bucket.Name == cc.Name {
+			count++
 			continue
 		}
-		if i < 3 {
-			t.Error(bucket.Name + " is not exist")
-		}
+	}
+
+	if count < 3 {
+		t.Fatal(buckets)
 	}
 
 }

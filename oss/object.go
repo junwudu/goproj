@@ -19,6 +19,8 @@ import (
 
 
 type Object struct {
+	Client *Client
+
 	/*object name starting with '/'*/
 	Name string
 
@@ -137,30 +139,6 @@ func (object *Object) ValidPut() (err error) {
 	return
 }
 
-
-func ListObject(client *Client, bucket Bucket, parser Parser) (objects []Object, err error) {
-	url, err := client.SignedUrl("GET", bucket.Name, "/", "", "", "")
-
-	if err != nil {
-		return
-	}
-
-	resp, err := http.Get(url)
-
-	if err != nil {
-		return
-	}
-
-	defer resp.Body.Close()
-
-	err = errors.GetError(resp, client.Provider)
-
-	if err == nil {
-		err = parser.Parse(resp.Body, &objects)
-	}
-
-	return
-}
 
 
 func DeleteObject(client *Client, object *Object) (err error) {

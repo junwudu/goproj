@@ -3,12 +3,12 @@ package oss
 import (
 	"net/http"
 	"time"
-	"strconv"
 	"github.com/junwudu/goproj/oss/errors"
 )
 
 
 type Bucket struct {
+	Client *Client
 	/*bucket name*/
 	Name string
 
@@ -16,55 +16,26 @@ type Bucket struct {
 	Status string
 
 	/*bucket created timestamp*/
-	Born string
+	Born time.Time
 
 	/*bucket total capacity*/
-	Capacity string
+	Capacity uint64
 
 	/*bucket used capacity*/
-	Used string
+	Used uint64
 
 	/*bucket located geometry region*/
 	Location string
+
+	/*bucket access level*/
+	Acl string
+
+	objects []Object
 }
 
 
-func (bucket Bucket) BornTime() time.Time {
-	t, err := strconv.ParseInt(bucket.Born, 10, 64)
-	if err != nil {
-		panic(err)
-	}
-
-	return time.Unix(t, 0)
-}
-
-
-
-func ListBucket(client *Client, parser Parser) (buckets []Bucket, err error) {
-
-	url, err := client.SignedUrl("GET", "", "/", "", "", "")
-	if err != nil {
-		return
-	}
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return
-	}
-
-	defer resp.Body.Close()
-
-	err = errors.GetError(resp, client.Provider)
-	if err == nil {
-		err = parser.Parse(resp.Body, &buckets)
-	}
-
-	return
-}
-
-
-func CreateBucket(client *Client, name string) (err error) {
-	url, err := client.SignedUrl("PUT", name, "/", "", "", "")
+func (bucket *Bucket) Create() (err error) {
+	url, err := bucket.Client.SignedUrl("PUT", bucket.Name, "/", "", "", "")
 	if err != nil {
 		return
 	}
@@ -74,19 +45,23 @@ func CreateBucket(client *Client, name string) (err error) {
 		return
 	}
 
+	if bucket.Acl != "" {
+		req.Header.Set(bucket.Client.Provider.Acl(), bucket.Acl)
+	}
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
 	}
 
-	err = errors.GetError(resp, client.Provider)
+	err = errors.GetError(resp, bucket.Client.Provider)
 
 	return
 }
 
 
-func DeleteBucket(client *Client, name string) (err error) {
-	url, err := client.SignedUrl("DELETE", name, "/", "", "", "")
+func (bucket *Bucket) Delete() (err error) {
+	url, err := bucket.Client.SignedUrl("DELETE", bucket.Name, "/", "", "", "")
 	if err != nil {
 		return
 	}
@@ -101,7 +76,31 @@ func DeleteBucket(client *Client, name string) (err error) {
 		return
 	}
 
-	err = errors.GetError(resp, client.Provider)
+	err = errors.GetError(resp, bucket.Client.Provider)
 
+	return
+}
+
+
+func (bucket *Bucket) List(parser Parser) (err error) {
+	url, err := bucket.Client.SignedUrl("GET", bucket.Name, "/", "", "", "")
+
+	if err != nil {
+		return
+	}
+
+	resp, err := http.Get(url)
+
+	if err != nil {
+		return
+	}
+
+	defer resp.Body.Close()
+
+	err = errors.GetError(resp, bucket.Client.Provider)
+
+	if err == nil {
+		err = parser.Parse(resp.Body, &bucket.objects)
+	}
 	return
 }
