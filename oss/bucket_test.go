@@ -7,7 +7,7 @@ import (
 )
 
 
-func isExistBucket(bucket string) bool {
+func isExistBucket(bucket *Bucket) bool {
 
 	buckets, err := client.ListBucket(&parser)
 	if err != nil {
@@ -15,7 +15,7 @@ func isExistBucket(bucket string) bool {
 	}
 
 	for _, b := range buckets {
-		if b.Name == bucket {
+		if b.Name == bucket.Name {
 			return true
 		}
 	}
@@ -44,18 +44,16 @@ func assertError(t *testing.T, err error, args...int) {
 
 
 func TestCreateBucket(t *testing.T) {
-	var testBucket Bucket
-	testBucket.Name = "testjunmm"
-	testBucket.Client = &client
+	testBucket := client.NewBucket("testjunmm")
 
-	if isExistBucket(testBucket.Name) {
+	if isExistBucket(&testBucket) {
 		err := testBucket.Delete()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if isExistBucket(testBucket.Name) {
+	if isExistBucket(&testBucket) {
 		t.Fatal(fmt.Sprintf("bucket %s has existed!", testBucket.Name))
 	}
 
@@ -64,7 +62,7 @@ func TestCreateBucket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !isExistBucket(testBucket.Name) {
+	if !isExistBucket(&testBucket) {
 		t.Fatal("create bucket " + testBucket.Name + " is failed!")
 	}
 
@@ -77,26 +75,28 @@ func TestCreateBucket(t *testing.T) {
 
 
 func TestDeleteBucket(t *testing.T) {
-	var testBucket Bucket
-	testBucket.Name = "testjunmm"
-	testBucket.Client = &client
+	testBucket := client.NewBucket("testjunmm")
 
-	if !isExistBucket(testBucket.Name) {
+	if !isExistBucket(&testBucket) {
 		err := testBucket.Create()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if !isExistBucket(testBucket.Name) {
+	if !isExistBucket(&testBucket) {
 		t.Fatal("bucket can not be created : " + testBucket.Name)
 	}
 
 	//put object
-	var object Object
-	object.SetName(fn)
-	object.SetBucket(testBucket.Name)
-	if !ensureObject(&object) {
+	b := client.NewBucket(testBucket.Name)
+	obj := b.NewObject("otest.txt")
+	obj.setData([]byte(`{
+          "status": 200,
+          "statusText": "OK",
+          "httpVersion": "HTTP/1.1"}`))
+
+	if err := obj.Put(); err != nil {
 		t.Error("can't put object")
 	} else {
 		err := testBucket.Delete()
@@ -104,7 +104,7 @@ func TestDeleteBucket(t *testing.T) {
 			assertError(t, err, -1007, 403)
 		}
 
-		err = DeleteObject(&client, &object)
+		err = obj.Delete()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,7 +115,7 @@ func TestDeleteBucket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if isExistBucket(testBucket.Name) {
+	if isExistBucket(&testBucket) {
 		t.Fatal("bucket can not be deleted : " + testBucket.Name)
 	}
 
@@ -126,42 +126,32 @@ func TestDeleteBucket(t *testing.T) {
 }
 
 
-func TestListBucket(t *testing.T) {
-	var aa Bucket
-	aa.Name = "test18121"
-	aa.Client = &client
-	var bb Bucket
-	bb.Name = "test18122"
-	bb.Client = &client
-	var cc Bucket
-	cc.Name = "testbucket18123"
-	cc.Client = &client
 
-	aa.Create()
-	bb.Create()
-	cc.Create()
+func TestListObject(t *testing.T) {
+	object := createObject()
 
-	defer aa.Delete()
-	defer bb.Delete()
-	defer cc.Delete()
+	if !isExistObject(&object) {
+		if err := object.Put(); err != nil {
+			t.Fatal(err)
+		}
+	}
 
-	buckets, err := client.ListBucket(&parser)
+	err := object.Bucket.List(&parser)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count := 0
-	for _, bucket := range buckets {
-		if bucket.Name == aa.Name || bucket.Name == bb.Name || bucket.Name == cc.Name {
-			count++
-			continue
+
+	var flag bool
+	for _, obj := range object.Bucket.Objects {
+		if obj.Name == object.Name {
+			flag = true
 		}
 	}
 
-	if count < 3 {
-		t.Fatal(buckets)
+	if !flag {
+		t.Fatal(object.Name + " is not contained in object list")
 	}
-
 }
 
 

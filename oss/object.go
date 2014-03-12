@@ -17,7 +17,7 @@ import (
 	"encoding/hex"
 )
 
-
+/*oss object*/
 type Object struct {
 	Client *Client
 
@@ -36,7 +36,7 @@ type Object struct {
 	ModifyTime time.Time
 
 	/*bucket that in */
-	Bucket Bucket
+	Bucket *Bucket
 
 	/*starting pos in this bucket*/
 	Pos uint64
@@ -65,7 +65,7 @@ type Object struct {
 }
 
 
-func (object *Object) SetName(name string) {
+func (object *Object) setName(name string) {
 	if name[0] != '/' {
 		object.Name = "/" + name
 	} else {
@@ -83,38 +83,14 @@ func (object *Object) SetName(name string) {
 	}
 }
 
-func (object *Object) SetBucket(bucket string) {
-	var b Bucket
-	b.Name = bucket
-	object.Bucket = b
+
+func (object *Object) setData(data []byte) {
+	object.Data = data
+	object.Size = uint64(len(object.Data))
 }
 
 
-func (object *Object) SetDataFromFile(f interface {}) func() {
-	var fp *os.File
-	switch f.(type) {
-	default:
-		panic(fmt.Sprintf("%T-%v is not path or File object", f, f))
-	case string:
-		if filepath.IsAbs(f.(string)) {
-			fp, _ = os.OpenFile(f.(string), os.O_RDONLY, os.FileMode(0666))
-		}
-	case *os.File:
-		fp = f.(*os.File)
-	}
-
-	if fp != nil {
-		object.Data, _ = ioutil.ReadAll(fp)
-		object.Size = uint64(len(object.Data))
-		//return callable for close file
-		return func() {fp.Close()}
-	}
-
-	return func() {}
-}
-
-
-func (object *Object) ValidPut() (err error) {
+func (object *Object) available() (ok bool, err error) {
 
 	if len (object.Name) < 2 || object.Name[0] != '/'  {
 		err = errors.Error("object name is valid fail: " + object.Name)
@@ -136,13 +112,14 @@ func (object *Object) ValidPut() (err error) {
 		err = errors.Error("size is 0")
 	}
 
+	ok = err == nil
 	return
 }
 
 
 
-func DeleteObject(client *Client, object *Object) (err error) {
-	url, err := client.SignedUrl("DELETE", object.Bucket.Name, object.Name, "", "", "")
+func (object *Object) Delete() (err error) {
+	url, err := object.Client.SignedUrl("DELETE", object.Bucket.Name, object.Name, "", "", "")
 
 	if err != nil {
 		return
@@ -158,20 +135,19 @@ func DeleteObject(client *Client, object *Object) (err error) {
 		return
 	}
 
-	err = errors.GetError(resp, client.Provider)
+	err = errors.GetError(resp, object.Client.Provider)
 
 	return
 }
 
 
-func PutObject(client *Client, object *Object) (err error) {
-
-	err = object.ValidPut()
-	if err != nil {
+func (object *Object) Put() (err error) {
+	ok, err := object.available()
+	if !ok {
 		return
 	}
 
-	url, err := client.SignedUrl("PUT", object.Bucket.Name, object.Name, "", "", "")
+	url, err := object.Client.SignedUrl("PUT", object.Bucket.Name, object.Name, "", "", "")
 	if err != nil {
 		return
 	}
@@ -194,13 +170,15 @@ func PutObject(client *Client, object *Object) (err error) {
 		req.Header.Set("Content-Disposition", object.Alias)
 	}
 
-	if req.Header.Get(client.Provider.Acl()) == "" {
-		req.Header.Set(client.Provider.Acl(), object.Acl)
+	if req.Header.Get(object.Client.Provider.Acl()) == "" {
+		req.Header.Set(object.Client.Provider.Acl(), object.Acl)
 	}
 
+
+	metaPrefix := object.Client.Provider.MetaPrefix()
 	if len(object.Meta) > 0 {
 		for k, v := range object.Meta {
-			req.Header.Set(k, v)
+			req.Header.Set(metaPrefix + k, v)
 		}
 	}
 
@@ -209,7 +187,7 @@ func PutObject(client *Client, object *Object) (err error) {
 		return
 	}
 
-	err = errors.GetError(resp, client.Provider)
+	err = errors.GetError(resp, object.Client.Provider)
 
 	if err == nil {
 		md5 := resp.Header.Get("Content-MD5")
@@ -224,8 +202,8 @@ func PutObject(client *Client, object *Object) (err error) {
 }
 
 
-func GetObject(client *Client, object *Object) (err error) {
-	url, err := client.SignedUrl("GET", object.Bucket.Name, object.Name, "", "", "")
+func (object *Object) Get() (err error) {
+	url, err := object.Client.SignedUrl("GET", object.Bucket.Name, object.Name, "", "", "")
 	if err != nil {
 		return
 	}
@@ -301,8 +279,8 @@ MEM:
 }
 
 
-func CopyObject(client *Client, dstObject *Object, srcObject *Object, copyMeta bool) (err error) {
-	url, err := client.SignedUrl("PUT", dstObject.Bucket.Name, dstObject.Name, "", "", "")
+func (dstObject *Object) Copy(srcObject *Object, copyMeta bool) (err error) {
+	url, err := dstObject.Client.SignedUrl("PUT", dstObject.Bucket.Name, dstObject.Name, "", "", "")
 	if err != nil {
 		return
 	}
@@ -312,9 +290,9 @@ func CopyObject(client *Client, dstObject *Object, srcObject *Object, copyMeta b
 		return
 	}
 
-	req.Header.Set(client.Provider.ObjectCopy(), client.ObjectUrl(srcObject))
+	req.Header.Set(dstObject.Client.Provider.ObjectCopy(), dstObject.Client.ObjectUrl(srcObject))
 	if !copyMeta {
-		req.Header.Set(client.Provider.ObjectCopyDrt(), client.Provider.ObjectCopyDrtForReplace())
+		req.Header.Set(dstObject.Client.Provider.ObjectCopyDrt(), dstObject.Client.Provider.ObjectCopyDrtForReplace())
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -322,7 +300,7 @@ func CopyObject(client *Client, dstObject *Object, srcObject *Object, copyMeta b
 		return
 	}
 
-	err = errors.GetError(resp, client.Provider)
+	err = errors.GetError(resp, dstObject.Client.Provider)
 
 	if err == nil {
 		md5 := resp.Header.Get("Content-MD5")
@@ -338,8 +316,8 @@ func CopyObject(client *Client, dstObject *Object, srcObject *Object, copyMeta b
 }
 
 
-func HeadObject(client *Client, object *Object) (err error) {
-	url, err := client.SignedUrl("HEAD", object.Bucket.Name, object.Name, "", "", "")
+func (object *Object) Head() (err error) {
+	url, err := object.Client.SignedUrl("HEAD", object.Bucket.Name, object.Name, "", "", "")
 	if err != nil {
 		return
 	}
@@ -354,7 +332,7 @@ func HeadObject(client *Client, object *Object) (err error) {
 		return
 	}
 
-	err = errors.GetError(resp, client.Provider)
+	err = errors.GetError(resp, object.Client.Provider)
 
 	if err == nil {
 		object.MD5 = resp.Header.Get("Content-MD5")
@@ -365,16 +343,18 @@ func HeadObject(client *Client, object *Object) (err error) {
 		object.ModifyTime, _ = time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
 
 		//meta headers
-		metaPrefix := client.Provider.MetaPrefix()
+		metaPrefix := object.Client.Provider.MetaPrefix()
 		for k, v := range resp.Header {
 			if idx := strings.Index(k, metaPrefix); idx != -1 {
 				if object.Meta == nil {
 					object.Meta = make(map[string]string)
 				}
-				object.Meta[k] = strings.Join(v, ";")
+				//just keep name without prefix
+				object.Meta[k[idx+len(metaPrefix): len(k)]] = strings.Join(v, ";")
 			}
 		}
 	}
 	return
 }
+
 

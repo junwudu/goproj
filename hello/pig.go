@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"crypto/md5"
 	"encoding/hex"
-	"strings"
 )
 
 func M(p *[]string) {
@@ -33,10 +32,20 @@ func main() {
 	data := md5.Sum([]byte("nihao"))
 	fmt.Println(hex.EncodeToString(data[0:]))
 
-	x := "/baidu/nihao"
+	var x []byte
+	x = nil
 
-	fmt.Println(x[strings.LastIndex(x, "/") + 1  : len(x)])
+	fmt.Println(len(x))
+
+	ss := S{3,5}
+	println(&ss.y)
+	sss := ss
+
+	vv := &ss
+
+	println(&sss.x)
+	println(&vv.y)
+
 
 
 }
-

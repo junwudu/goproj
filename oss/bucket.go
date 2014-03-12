@@ -30,8 +30,20 @@ type Bucket struct {
 	/*bucket access level*/
 	Acl string
 
-	objects []Object
+	Objects []Object
 }
+
+// create object from it's name,
+// bucket within and the content.
+// input maybe nil
+func (bucket *Bucket) NewObject(name string) Object {
+	var object Object
+	object.Client = bucket.Client
+	object.setName(name)
+	object.Bucket = bucket
+	return object
+}
+
 
 
 func (bucket *Bucket) Create() (err error) {
@@ -100,7 +112,7 @@ func (bucket *Bucket) List(parser Parser) (err error) {
 	err = errors.GetError(resp, bucket.Client.Provider)
 
 	if err == nil {
-		err = parser.Parse(resp.Body, &bucket.objects)
+		err = parser.Parse(resp.Body, &bucket.Objects)
 	}
 	return
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"github.com/junwudu/goproj/oss/errors"
+	"time"
 )
 
 
@@ -39,6 +40,14 @@ func (client Client) ObjectUrl(object *Object) string {
 	return fmt.Sprintf("http://%s/%s%s", client.Provider.Host(), object.Bucket.Name, object.Name)
 }
 
+
+func (client Client) NewBucket(name string) Bucket {
+	var bucket Bucket
+	bucket.Client = &client
+	bucket.Name = name
+	bucket.Born = time.Now()
+	return bucket
+}
 
 
 func (client Client) ListBucket(parser Parser) (buckets []Bucket, err error) {

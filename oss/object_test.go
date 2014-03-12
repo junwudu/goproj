@@ -2,115 +2,88 @@ package oss
 
 import (
 	"testing"
-	"fmt"
-	"os"
-	"path/filepath"
 )
 
 //var client = GetClient("baidu")
 
-var bucket = "mytestoss"
-
-//var parser BaiduParser
-
-var content = `{
+func createObject() Object {
+	client := GetClient("baidu")
+	b := client.NewBucket("mytestoss")
+	obj := b.NewObject("otest.txt")
+	obj.setData([]byte(`{
           "status": 200,
           "statusText": "OK",
-          "httpVersion": "HTTP/1.1"}`
-
-var fn = "otest.txt"
-
-func ensureFile() (path string) {
-
-	f, err := os.Create(fn)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer f.Close()
-
-	f.WriteString(content)
-
-	path, err = filepath.Abs(f.Name())
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	return
+          "httpVersion": "HTTP/1.1"}`))
+	return obj
 }
-
-
-func ensureObject(object *Object) bool {
-	path := ensureFile()
-	defer object.SetDataFromFile(path)()
-
-	err := PutObject(&client, object)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	return true
-}
-
 
 func isExistObject(object *Object) bool {
-	err := HeadObject(&client, object)
-	return err == nil
+	return object.Head() != nil
 }
 
 
 func TestPutObject(t *testing.T) {
-	var object Object
-	object.SetName(fn)
-	object.SetBucket(bucket)
+	object := createObject()
 
 	if isExistObject(&object) {
-		err := DeleteObject(&client, &object)
+		err := object.Delete()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if !ensureObject(&object) {
-		t.Fatal("failed to put object!")
+	if isExistObject(&object) {
+		t.Fatal("can't delete object : " + object.Name)
+	}
+
+	if err := object.Put(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !isExistObject(&object) {
+		t.Fatal("can't put object : " + object.Name)
 	}
 }
 
 
 func TestDeleteObject(t *testing.T) {
-	var object Object
-	object.SetName(fn)
-	object.SetBucket(bucket)
+	object := createObject()
 
 	if !isExistObject(&object) {
-		if !ensureObject(&object) {
-			t.Error("can't put objcect ")
+		if err := object.Put(); err != nil {
+			t.Fatal(err)
 		}
 	}
 
-	err := DeleteObject(&client, &object)
+	if !isExistObject(&object) {
+		t.Fatal("can't put object : " + object.Name)
+	}
+
+	err := object.Delete()
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if isExistObject(&object) {
+		t.Fatal("can't delete object : " + object.Name)
 	}
 }
 
 
 func TestCopyObject(t *testing.T) {
-	var object Object
-	object.SetName(fn)
-	object.SetBucket(bucket)
+	object := createObject()
 
 	if !isExistObject(&object) {
-		if !ensureObject(&object) {
-			t.Error("can't put objcect ")
+		if err := object.Put(); err != nil {
+			t.Fatal(err)
 		}
 	}
 
-	var dstObject Object
-	dstObject.SetName("test/mytest"+object.Alias)
-	dstObject.SetBucket(bucket)
+	dtb := client.NewBucket(object.Bucket.Name)
+	var dstObject = dtb.NewObject("test/mytest" + object.Alias)
 
-	err := CopyObject(&client, &dstObject, &object, true)
+
+	err := dstObject.Copy(&object, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,23 +94,21 @@ func TestCopyObject(t *testing.T) {
 }
 
 func TestGetObject(t *testing.T) {
-	var object Object
-	object.SetName(fn)
-	object.SetBucket(bucket)
+	object := createObject()
 
 	if !isExistObject(&object) {
-		if !ensureObject(&object) {
-			t.Fatal("can't put objcect ")
+		if err := object.Put(); err != nil {
+			t.Fatal(err)
 		}
 	}
 
-	err := GetObject(&client, &object)
+	err := object.Get()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	object.Location = "E:/"
-	err = GetObject(&client, &object)
+	err = object.Get()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,13 +116,11 @@ func TestGetObject(t *testing.T) {
 
 
 func TestHeadObject(t *testing.T) {
-	var object Object
-	object.SetName(fn)
-	object.SetBucket(bucket)
+	object := createObject()
 
 	if !isExistObject(&object) {
-		if !ensureObject(&object) {
-			t.Fatal("can't put objcect ")
+		if err := object.Put(); err != nil {
+			t.Fatal(err)
 		}
 	}
 
@@ -160,34 +129,4 @@ func TestHeadObject(t *testing.T) {
 	}
 }
 
-
-func TestListObject(t *testing.T) {
-	var object Object
-	object.SetName(fn)
-	object.SetBucket(bucket)
-
-	if !isExistObject(&object) {
-		if !ensureObject(&object) {
-			t.Fatal("can't put objcect ")
-		}
-	}
-
-	objList, err := ListObject(&client, object.Bucket, &parser)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	object.SetName(fn)
-
-	var flag bool
-	for _, obj := range objList {
-		if obj.Name == object.Name {
-			flag = true
-		}
-	}
-
-	if !flag {
-		t.Fatal(object.Name + " is not contained in object list")
-	}
-}
 
