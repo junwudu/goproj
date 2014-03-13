@@ -25,6 +25,7 @@ func (baiduError *BaiduError) Parse(reader io.Reader) {
 
 	var v interface {}
 	err = json.Unmarshal(data, &v)
+
 	if err != nil {
 		baiduError.Description = err.Error()
 		return

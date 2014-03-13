@@ -18,7 +18,7 @@ func createObject() Object {
 }
 
 func isExistObject(object *Object) bool {
-	return object.Head() != nil
+	return object.Head() == nil
 }
 
 
